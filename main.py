@@ -16,8 +16,6 @@ if not web3.is_connected():
 
 # URL to send the POST request to
 url_collect_chest = 'https://worldofdypiansdailybonus.azurewebsites.net/api/CollectChest'
-url_get_rewards = 'https://worldofdypiansdailybonus.azurewebsites.net/api/GetRewards'
-
 
 # Headers for the POST request
 headers = {
@@ -42,21 +40,16 @@ headers = {
 with open("info.txt", "r") as file:
     info_lines = file.readlines()
 
-
 # Process for each line in info.txt
 for line in info_lines:
     email, private_key = line.strip().split(':')
-
-
 
     # Create Ethereum account from private key
     account = Account.from_key(private_key)
     account_address = web3.to_checksum_address(account.address)
     recipient_address = web3.to_checksum_address('0xd600fbcf64da43ccbb4ab6da61007f5b1f8fe455')
-    # Repeat process 10 times for each email and private key
 
-    list_of_chest = [False,False,False,False,False,False,False,False,False,False]                
-
+    # Repeat process 10 times for each email and private key       
     for chestIndex in range(10):
         # Prepare the transaction with the method ID
         nonce = web3.eth.get_transaction_count(account_address)
@@ -69,44 +62,12 @@ for line in info_lines:
             'chainId': web3.eth.chain_id 
         }
 
-        # # предсказанное количество газа
-        # get_gas = (web3.eth.estimate_gas(tx))
-        
-        # tx['gas'] = get_gas
-
         # Sign and send the transaction
         signed_tx = web3.eth.account.sign_transaction(tx, private_key)
 
-        # Sending the POST request
-        response_get_rewards = requests.post(url_get_rewards, json={"emailAddress": email}, headers=headers)
-        time.sleep(1)
-        if response_get_rewards.status_code == 200:
-            try:
-                response_json = response_get_rewards.json()
-                chest_order = response_json.get("chestOrder", None)
-                for item in chest_order:
-                    if item.get("isOpened", None) and (item.get("chestType", None) == 'Standard'):
-                        list_of_chest[chestIndex] = item.get("isOpened", None)
-                if list_of_chest[chestIndex]:
-                    print(f'The chest № {chestIndex} is already open')
-                    continue
-                # output in console
-
-                # print(rewards)
-                # if rewards is not None:
-                #     print(f"Email: {email}, ChestIndex: {chestIndex}, Rewards: {rewards}")
-                #     with open('result.txt', 'a') as file:
-                #         file.write(f'Email: {email}, ChestIndex: {chestIndex}, Rewards: type rewards: {rewards[0]["rewardType"]} - {rewards[0]["reward"]}\n')
-            
-            except ValueError:
-                print("Failed to parse response as JSON.")
-        else:
-            print("Rewards not found in the response.")
-            break
         tx_hash = web3.eth.send_raw_transaction(signed_tx.rawTransaction)
         txn_receipt = web3.eth.wait_for_transaction_receipt(tx_hash)
         ht = str(tx_hash.hex())
-        # print(f'Transaction for {email}, chestIndex {chestIndex} sent with hash: {ht}')
 
         # Payload for the POST request
         payload = {
@@ -117,22 +78,17 @@ for line in info_lines:
 
         # Sending the POST request
         response = requests.post(url_collect_chest, json=payload, headers=headers)
-        time.sleep(1)
-
         # Check if the request was successful
         if response.status_code == 200:
             try:
                 response_json = response.json()
                 rewards = response_json.get("rewards", None)
-
                 if rewards is not None:
                     print(f"Email: {email}, ChestIndex: {chestIndex}, Rewards: {rewards}")
                     date = datetime.now().strftime("%d %B %Y")
                     with open('result.txt', 'a+') as file:
-                        if datetime.date not in file:
-                            file.write(f'{datetime.now().strftime("%A, %d. %B %Y %I:%M%p")}\n')
-                        else:
-                            file.write(f'Date: {date}, Email: {email}, ChestIndex: {chestIndex}, Rewards: type rewards: {rewards[0]["rewardType"]} - {rewards[0]["reward"]}\n')
+                        date = datetime.now().strftime("%d %B %Y")
+                        file.write(f'Date: {date}, Email: {email}, ChestIndex: {chestIndex}, Rewards: type rewards: {rewards[0]["rewardType"]} - {rewards[0]["reward"]}\n')
                 else:
                     print("Rewards not found in the response.")
             except ValueError:
